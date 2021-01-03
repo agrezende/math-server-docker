@@ -9,13 +9,20 @@
 
 # docker run -d -p 8787:8787 -p 8000:8000 --name ms1 math-server
 
-FROM centos:7
+FROM centos:7 as base
 
-MAINTAINER felipenoris <felipenoris@users.noreply.github.com>
+LABEL MAINTAINER1="felipenoris <felipenoris@users.noreply.github.com>"
+LABEL MAINTAINER2="Alan Rezende <agrezende@users.noreply.github.com>"
 
 WORKDIR /root
 
 RUN yum update -y && yum install -y epel-release && yum clean all
+
+# CZMQ is a higher-level binding for the ZeroMQ core API (https://reposcope.com/package/czmq-devel)
+# http://czmq.zeromq.org/
+# https://github.com/zeromq/czmq
+# ZeroMQ (ØMQ, 0MQ or ZMQ) is an asynchronous messaging library, aimed at use in distributed or concurrent applications.
+# (https://en.wikipedia.org/wiki/ZeroMQ)
 
 RUN yum update -y && yum install -y \
     p7zip \
@@ -27,6 +34,7 @@ RUN yum update -y && yum install -y \
     curl-devel \
     cronie \
     czmq \
+    czmq-devel \
     expat-devel \
     file \
     flex \
@@ -83,7 +91,11 @@ ENV CPATH /usr/include/glpk
 
 ENV LD_LIBRARY_PATH /usr/local/lib:/usr/local/lib64
 
+
+####################################################################
 # TeX
+#
+
 RUN yum -y install perl-Tk perl-Digest-MD5 xorriso && yum clean all
 
 ADD texlive.profile texlive.profile
@@ -114,7 +126,15 @@ RUN wget http://mirrors.rit.edu/CTAN/systems/texlive/Images/texlive$TEXLIVE_VERS
 
 ENV PATH /usr/local/texlive/distribution/bin/x86_64-linux:$PATH
 
+#
+# TeX
+####################################################################
+
+
+####################################################################
 # GIT - https://git-scm.com/
+#
+
 # http://tecadmin.net/install-git-2-0-on-centos-rhel-fedora/#
 ENV GIT_VER 2.24.1
 
@@ -127,7 +147,19 @@ RUN wget https://www.kernel.org/pub/software/scm/git/git-$GIT_VER.tar.gz \
 # Makes git use https by default
 RUN git config --global url."https://".insteadOf git://
 
-# llvm needs CMake 2.8.12.2 or higher
+#
+# GIT - https://git-scm.com/
+####################################################################
+
+
+####################################################################
+# CMake
+#
+# 'llvm' needs CMake 2.8.12.2 or higher
+# The LLVM Project is a collection of modular and reusable compiler and toolchain technologies.
+# https://llvm.org/
+# https://github.com/llvm/llvm-project/
+
 # https://cmake.org/download/
 ENV CMAKE_VER_MAJ 3.16
 ENV CMAKE_VER_MIN .1
@@ -140,7 +172,15 @@ RUN wget https://cmake.org/files/v$CMAKE_VER_MAJ/cmake-$CMAKE_VER.tar.gz \
 
 ENV CMAKE_ROOT /usr/local/share/cmake-$CMAKE_VER_MAJ
 
-# node https://nodejs.org/en/ - https://tecadmin.net/install-latest-nodejs-and-npm-on-centos/
+#
+# CMake
+####################################################################
+
+
+####################################################################
+# node
+#
+# https://nodejs.org/en/ - https://tecadmin.net/install-latest-nodejs-and-npm-on-centos/
 RUN curl -sL https://rpm.nodesource.com/setup_10.x | bash -
 RUN yum install -y nodejs
 
@@ -157,7 +197,14 @@ RUN npm config set proxy ${http_proxy} \
     && npm config set registry http://registry.npmjs.org/ \
     && npm set strict-ssl false
 
+#
+# node
+####################################################################
+
+
+####################################################################
 # Anaconda
+#
 # https://repo.continuum.io/archive
 ENV CONDA_VER 2019.10
 
@@ -198,7 +245,11 @@ RUN source activate py3 && conda install -c conda-forge jupyterlab -y
 # Support for other languages
 # https://github.com/jupyter/jupyter/wiki/Jupyter-kernels
 
+
+####################################################################
 # R
+#
+
 RUN yum -y install \
     lapack-devel \
     blas-devel \
@@ -225,7 +276,15 @@ RUN wget https://download2.rstudio.org/server/centos6/x86_64/rstudio-server-rhel
     && yum clean all \
     && rm -f rstudio-server-rhel-$RSTUDIO_VER-x86_64.rpm && rm -f RSTUDIOMD5
 
-# Shiny - https://www.rstudio.com/products/shiny/download-server/
+#
+# R
+####################################################################
+
+####################################################################
+# Shiny Server
+# https://www.rstudio.com/products/shiny/download-server/
+#
+
 ENV SHINY_VER 1.5.12.933
 
 RUN R -e 'install.packages("shiny", repos="https://cran.rstudio.com/")' \
@@ -237,7 +296,16 @@ RUN R -e 'install.packages("shiny", repos="https://cran.rstudio.com/")' \
     && yum clean all \
     && cd && rm -f SHINYSERVERMD5 && rm -f shiny-server-$SHINY_VER-x86_64.rpm
 
-# Julia - https://julialang.org/downloads/
+#
+# Shiny Server
+####################################################################
+
+
+####################################################################
+# Julia
+# https://julialang.org/downloads/
+#
+
 ENV JULIA_VER_MAJ 1.3
 ENV JULIA_VER_MIN .0
 ENV JULIA_VER $JULIA_VER_MAJ$JULIA_VER_MIN
@@ -250,19 +318,30 @@ RUN wget https://julialang-s3.julialang.org/bin/linux/x64/$JULIA_VER_MAJ/julia-$
 
 ENV JULIA_PKGDIR /usr/local/julia/share/julia/site
 
+#
+# Julia
+####################################################################
+
+
 # R
 # http://irkernel.github.io/installation/
-RUN yum -y install czmq-devel && yum clean all
 
 RUN R -e "install.packages('IRkernel')"
 
 RUN R -e "IRkernel::installspec(user = FALSE)"
 
+# RUN jupyter labextension install @techrah/text-shortcuts
+
 # Optional configuration file for svn
 ADD svn-servers /etc/subversion/servers
 
+####################################################################
 # coin SYMPHONY
 # https://github.com/coin-or/SYMPHONY
+#
+# SYMPHONY is an open-source solver, callable library, and development framework for 
+# mixed-integer linear programs (MILPs) written in C with a number of unique features
+
 ENV SYMPHONY_VER 5.6
 
 RUN git clone https://www.github.com/coin-or/coinbrew \
@@ -271,6 +350,10 @@ RUN git clone https://www.github.com/coin-or/coinbrew \
     && ./coinbrew build --no-prompt SYMPHONY --prefix=/usr/local --parallel-jobs="$(nproc --all)" \
     && ./coinbrew install SYMPHONY \
     && cd .. && rm -rf coinbrew
+
+#
+# coin SYMPHONY
+####################################################################
 
 # bash Jupyter kernel
 RUN source activate py3 && pip install bash_kernel \
@@ -357,13 +440,31 @@ RUN yum -y install \
 # Improve link to shared libraries
 ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:/usr/lib64/R/lib:/usr/local/lib:/lib:/usr/lib/jvm/jre/lib/amd64/server:/usr/lib/jvm/jre/lib/amd64:/usr/lib/jvm/java/lib/amd64:/usr/java/packages/lib/amd64:/lib:/usr/lib:/usr/local/lib
 
+####################################################################
 # ffmpeg
+#
+
 RUN rpm --import http://li.nux.ro/download/nux/RPM-GPG-KEY-nux.ro \
     && rpm -Uvh http://li.nux.ro/download/nux/dextop/el7/x86_64/nux-dextop-release-0-5.el7.nux.noarch.rpm \
     && yum install ffmpeg ffmpeg-devel -y
 
-# Altair - https://altair-viz.github.io/installation.html
+#
+# ffmpeg
+####################################################################
+
+####################################################################
+# Altair
+# Declarative statistical visualization library for Python
+#
+# https://github.com/altair-viz/altair
+# https://altair-viz.github.io/getting_started/installation.html
+#
+
 RUN conda install altair --channel conda-forge -y
+
+#
+# Altair
+####################################################################
 
 # Plotly for Python
 RUN conda install plotly -y
